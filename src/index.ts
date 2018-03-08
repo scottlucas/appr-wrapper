@@ -168,8 +168,8 @@ if ((<any>window).ApplePaySession) {
         this.paymentRequest.shippingMethods = <ApplePayJS.ApplePayShippingMethod[]>[];
         for (let option of details.shippingOptions) {
           let shippingMethod: ApplePayJS.ApplePayShippingMethod = {
-            label: option.label,
-            detail: option.label,
+            label: (option.label.indexOf('-') ? option.label.substring(0, option.label.indexOf('-')) : option.label).trim(),
+            detail: (option.label.indexOf('-') ? option.label.substring(option.label.indexOf('-')+1) : '').trim(),
             amount: option.amount.value,
             identifier: option.id
           };
@@ -388,7 +388,7 @@ if ((<any>window).ApplePaySession) {
 
       this['onshippingaddresschange']({
         updateWith: p => {
-          p.then((details: PaymentDetails) => {
+          Promise.resolve(p).then((details: PaymentDetails) => {
             // https://developer.apple.com/reference/applepayjs/applepaysession/1778008-completeshippingcontactselection
             this.updatePaymentDetails(details);
             if (this.version == 3) {
@@ -445,7 +445,7 @@ if ((<any>window).ApplePaySession) {
 
       this['onshippingoptionchange']({
         updateWith: p => {
-          p.then((details: PaymentDetails) => {
+          Promise.resolve(p).then((details: PaymentDetails) => {
             // https://developer.apple.com/reference/applepayjs/applepaysession/1778024-completeshippingmethodselection
             this.updatePaymentDetails(details);
             if (this.version == 3) {
