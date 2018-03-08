@@ -182,6 +182,7 @@ The first argument to the `PaymentRequest` constructor.
     * [`merchantCapabilities`](https://developer.apple.com/reference/applepayjs/paymentrequest/1916123-merchantcapabilities) defaults to ['supports3DS'] unless you provide any.
     * `validationEndpoint` is optional. Specify the merchant validation endpoint on your server. If you omit this, handle validatemerchant event yourself.
     * `merchantIdentifier` is required. Specify your merchant id.
+    * `unknownErrorMessage` is optional. String to return when no error message is available/provided.
 
 With `validationEndpoint`, appr-wrapper automatically handles `validatemerchant`
 event for you. On your server's specified endpoint, you'll receive a `POST`

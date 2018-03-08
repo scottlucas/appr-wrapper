@@ -12,7 +12,7 @@
   "author": "Eiji Kitamura <agektmr@google.com>",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/applepayjs": "^1.0.4",
+    "@types/applepayjs": "^3.0.0",
     "chai": "^4.1.2",
     "gulp": "^3.9.1",
     "gulp-webpack": "^1.5.0",
