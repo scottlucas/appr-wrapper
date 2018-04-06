@@ -184,8 +184,6 @@ if ((<any>window).ApplePaySession) {
           label: details.total.label,
           amount: details.total.amount.value
         };
-      } else {
-        throw '`total` is required parameter for `PaymentDetails`.';
       }
     }
 
@@ -256,6 +254,21 @@ if ((<any>window).ApplePaySession) {
      */
     public show(): Promise<PaymentResponse> {
       this.session.begin();
+      return new Promise((resolve, reject) => {
+        this.paymentResolver = (response: ApplePayJS.ApplePayPayment) => {
+          // response.complete = this.onPaymentComplete;
+          resolve(<any>response);
+        };
+        this.paymentRejector = (error: Error) => {
+          reject(error);
+        };
+      });
+    }
+
+    /**
+     * @returns Promise
+     */
+    public restart(): Promise<PaymentResponse> {
       return new Promise((resolve, reject) => {
         this.paymentResolver = (response: ApplePayJS.ApplePayPayment) => {
           // response.complete = this.onPaymentComplete;
@@ -393,7 +406,7 @@ if ((<any>window).ApplePaySession) {
             this.updatePaymentDetails(details);
             if (this.version == 3) {
               let shippingContactUpdate: ApplePayJS.ApplePayShippingContactUpdate = {
-                errors: (details.error) ? [ <ApplePayJS.ApplePayError>{ code: 'addressUnserviceable', message: details.error }] : [],
+                errors: ((<any>details).appleError) ? (<any>details).appleError : [],
                 newLineItems: this.paymentRequest.lineItems,
                 newShippingMethods: this.paymentRequest.shippingMethods,
                 newTotal: this.paymentRequest.total,
@@ -401,7 +414,7 @@ if ((<any>window).ApplePaySession) {
               this.session.completeShippingContactSelection(shippingContactUpdate);
             } else {
               this.session.completeShippingContactSelection(
-                ApplePaySession.STATUS_SUCCESS,
+                (details.error) ? ApplePaySession.STATUS_FAILURE : ApplePaySession.STATUS_SUCCESS,
                 this.paymentRequest.shippingMethods,
                 this.paymentRequest.total,
                 this.paymentRequest.lineItems);
@@ -410,7 +423,7 @@ if ((<any>window).ApplePaySession) {
             this.updatePaymentDetails(details);
             if (this.version == 3) {
               let shippingContactUpdate: ApplePayJS.ApplePayShippingContactUpdate = {
-                errors: [ <ApplePayJS.ApplePayError> { code: 'unknown', message: details.error || this.unknownErrorMessage } ],
+                errors: ((<any>details).appleError) ? (<any>details).appleError : [ new ApplePayError('unknown') ],
                 newLineItems: this.paymentRequest.lineItems,
                 newShippingMethods: this.paymentRequest.shippingMethods,
                 newTotal: this.paymentRequest.total,
@@ -449,11 +462,17 @@ if ((<any>window).ApplePaySession) {
             // https://developer.apple.com/reference/applepayjs/applepaysession/1778024-completeshippingmethodselection
             this.updatePaymentDetails(details);
             if (this.version == 3) {
-              let shippingMethodUpdate: ApplePayJS.ApplePayShippingMethodUpdate = {
-                newLineItems: (!details.error) ? this.paymentRequest.lineItems : null,
-                newTotal: (!details.error) ? this.paymentRequest.total : null,
-              };
-              this.session.completeShippingMethodSelection(shippingMethodUpdate);
+              if (details.error) {
+                this.abort().then(function() {
+                  alert(details.error);
+                });
+              } else {
+                let shippingMethodUpdate: ApplePayJS.ApplePayShippingMethodUpdate = {
+                  newLineItems: this.paymentRequest.lineItems,
+                  newTotal: this.paymentRequest.total,
+                };
+                this.session.completeShippingMethodSelection(shippingMethodUpdate);
+              }
             } else {
               this.session.completeShippingMethodSelection(
                 ApplePaySession.STATUS_SUCCESS,
@@ -463,11 +482,10 @@ if ((<any>window).ApplePaySession) {
           }, (details: PaymentDetails) => {
             this.updatePaymentDetails(details);
             if (this.version == 3) {
-              let shippingMethodUpdate: ApplePayJS.ApplePayShippingMethodUpdate = {
-                newLineItems: null,
-                newTotal: null,
-              };
-              this.session.completeShippingMethodSelection(shippingMethodUpdate);
+              var error = this.unknownErrorMessage;
+              this.abort().then(function() {
+                alert(error);
+              });
             } else {
               this.session.completeShippingMethodSelection(
                 ApplePaySession.STATUS_FAILURE,
@@ -501,7 +519,9 @@ if ((<any>window).ApplePaySession) {
      */
     private onPaymentCanceled(): void {
       if (this.paymentRejector) {
-        this.paymentRejector();
+        var error = new Error('Payment request cancelled');
+        error.name = 'AbortError';
+        this.paymentRejector(error);
         this.paymentResolver = null;
         this.paymentRejector = null;
       }
@@ -509,9 +529,9 @@ if ((<any>window).ApplePaySession) {
 
     /**
      * @param  {'success' | 'fail' | 'unknown'} result
-     * @returns void
+     * @returns Promise
      */
-    private onPaymentComplete(result: 'success' | 'fail' | 'unknown'): void {
+    private onPaymentComplete(result: 'success' | 'fail' | 'unknown'): Promise<any> {
       if (result === 'success' ||
           result === 'fail' ||
           result === 'unknown' ||
@@ -539,18 +559,20 @@ if ((<any>window).ApplePaySession) {
           if (status == ApplePaySession.STATUS_SUCCESS) {
             paymentAuthorizationResult = {
               status: status
-            }
+            };
           } else {
             paymentAuthorizationResult = {
               status: status,
-              errors: [ <ApplePayJS.ApplePayError> { code: 'unknown', message: this.unknownErrorMessage }]
-            }
+              errors: ((<any>window).appleError) ? (<any>window).appleError : [ new ApplePayError('unknown') ],
+            };
           }
+          console.log(paymentAuthorizationResult);
+          return Promise.resolve(this.session.completePayment(paymentAuthorizationResult));
         } else {
-          this.session.completePayment(status);
+          return Promise.resolve(this.session.completePayment(status));
         }
       } else {
-        throw 'Unkown status code for complete().';
+        throw 'Unknown status code for complete().';
       }
     }
   }
