@@ -345,16 +345,16 @@ if ((<any>window).ApplePaySession) {
       if (this['onvalidatemerchant']) {
         this['onvalidatemerchant'](e);
       } else {
-        let headers = new Headers({
-          'Content-Type': 'application/json'
-        });
-        fetch(this.validationEndpoint, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify({validationURL: e.validationURL})
-        }).then(res => {
-          if (res.status === 200) {
-            return res.json();
+        Promise.resolve(new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest();
+          xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText });
+          xhr.onerror = () => reject(new Error(xhr.statusText));
+          xhr.open('POST', this.validationEndpoint, true);
+          xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+          xhr.send(JSON.stringify({validationURL: e.validationURL}));
+        })).then(res => {
+          if ((res as any).status === 200) {
+            return JSON.parse((res as any).body);
           } else {
             throw 'Merchant validation error.';
           }
